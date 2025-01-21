@@ -1,13 +1,16 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-const style = path.join(__dirname, 'styles');
+const styles = path.join(__dirname, 'styles');
 const pathDirProject = path.join(__dirname, 'project-dist');
 const pathProject = path.join(__dirname, 'project-dist', 'style.css');
-console.log(pathDirProject);
 
 const assetsOriginal = path.join(__dirname, 'assets');
 const assetsCopy = path.join(__dirname, 'project-dist', 'assets');
+
+const indexHtmlPath = path.join(__dirname, 'project-dist', 'index.html');
+const templatePath = path.join(__dirname, 'template.html');
+const componentsPath = path.join(__dirname, 'components');
 
 async function createDir(path) {
   try {
@@ -17,14 +20,35 @@ async function createDir(path) {
   }
 }
 
-async function mergeStyle() {
-  createDir(pathDirProject);
+async function createHtmlFile() {
   try {
-    const files = await fs.readdir(style);
+    let readTemplate = await fs.readFile(templatePath, 'utf-8');
+    const componentsDir = await fs.readdir(componentsPath, {
+      withFileTypes: true,
+    });
+    for (const file of componentsDir) {
+      const filePath = path.join(componentsPath, file.name);
+      const { name, ext } = path.parse(filePath);
+      // console.log(name, ext);
+      if (file.isFile() && ext === '.html') {
+        const content = await fs.readFile(filePath, 'utf-8');
+        const regex = new RegExp(`{{${name}}}`, 'g');
+        readTemplate = readTemplate.replace(regex, content);
+      }
+    }
+    await fs.writeFile(indexHtmlPath, readTemplate, 'utf-8');
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function mergeStyle() {
+  try {
+    const files = await fs.readdir(styles);
     // console.log(files);
     let allFile = [];
     for (const file of files) {
-      const pathFile = path.join(style, file);
+      const pathFile = path.join(styles, file);
       const extname = path.extname(file);
       const stat = await fs.stat(pathFile);
       // console.log(extname, '\n', pathFile, '\n', allFile);
@@ -39,26 +63,6 @@ async function mergeStyle() {
     console.error(error);
   }
 }
-mergeStyle();
-
-// async function copyFolder() {
-//   const folderData = path.join(__dirname, 'assets');
-//   const copyFolderData = path.join(__dirname, 'project-dist', 'assets');
-//   try {
-//     try {
-//       await fs.rm(copyFolderData, { recursive: true }, { force: true });
-//     } catch (err) {
-//       if (err.code !== 'ENOENT') {
-//         throw err;
-//       }
-//     }
-//     createDir(copyFolderData);
-//     // await fs.mkdir(copyFolderData, { recursive: true });
-//     await copyContent(folderData, copyFolderData);
-//   } catch (error) {
-//     console.error(error);
-//   }
-// }
 
 async function copyContent(assetsOriginal, assetsCopy) {
   try {
@@ -68,7 +72,6 @@ async function copyContent(assetsOriginal, assetsCopy) {
       const dataPath = path.join(assetsOriginal, content.name);
       const copyDataPath = path.join(assetsCopy, content.name);
       if (content.isDirectory()) {
-        // await fs.mkdir(dataPath, { withFileTypes: true });
         await createDir(copyDataPath);
         await copyContent(dataPath, copyDataPath);
       } else if (content.isFile()) {
@@ -81,5 +84,15 @@ async function copyContent(assetsOriginal, assetsCopy) {
   }
 }
 
-// copyFolder();
-copyContent(assetsOriginal, assetsCopy);
+async function htmlBuilder() {
+  try {
+    await createDir(pathDirProject);
+    await createHtmlFile();
+    await mergeStyle();
+    await copyContent(assetsOriginal, assetsCopy);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+htmlBuilder();
