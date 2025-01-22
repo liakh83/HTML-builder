@@ -27,7 +27,7 @@ async function copyContent(data, copyData) {
       const dataPath = path.join(data, content.name);
       const copyDataPath = path.join(copyData, content.name);
       if (content.isDirectory()) {
-        await fs.mkdir(dataPath, { withFileTypes: true });
+        await fs.mkdir(copyDataPath, { recursive: true });
         await copyContent(dataPath, copyDataPath);
       } else if (content.isFile()) {
         await fs.copyFile(dataPath, copyDataPath);
